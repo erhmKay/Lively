@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Shift Tracker</title>
+<!-- Standalone version: save as index.html and open in any browser, or host on any web server. -->
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--tx:#1b1f27;--mu:#667085;--bd:#e2e5ea;--day:#f5a623;--night:#3b5bdb;--off:#98a2b3;--leave:#12b886;--ac:#0b5fff;--ok:#12b886;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1218;--card:#181c25;--tx:#eceff4;--mu:#9aa3b2;--bd:#2a303c;--ac:#5b8cff;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f1218;--card:#181c25;--tx:#eceff4;--mu:#9aa3b2;--bd:#2a303c;--ac:#5b8cff;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:760px;margin:0 auto;padding:14px}
+h1{font-size:20px;margin:6px 0 2px}h2{font-size:15px;margin:0 0 10px}
+.sub{color:var(--mu);font-size:13px;margin-bottom:12px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
+.today{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.big{font-size:22px;font-weight:700}
+.pill{display:inline-block;padding:3px 10px;border-radius:99px;color:#fff;font-size:12px;font-weight:600}
+.day{background:var(--day)}.night{background:var(--night)}.off{background:var(--off)}.leave{background:var(--leave)}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.stat{border:1px solid var(--bd);border-radius:10px;padding:10px}
+.stat b{display:block;font-size:22px}.stat span{color:var(--mu);font-size:12px}
+.cal-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+button{font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:8px 12px;cursor:pointer}
+button.p{background:var(--ac);border-color:var(--ac);color:#fff}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.dow{font-size:11px;color:var(--mu);text-align:center}
+.c{min-height:58px;border:1px solid var(--bd);border-radius:8px;padding:4px;font-size:12px;cursor:pointer;position:relative;background:var(--card)}
+.c.x{opacity:.35}.c.t{outline:2px solid var(--ac)}.c.sel{background:color-mix(in srgb,var(--ac) 12%,var(--card))}
+.c i{display:block;font-style:normal;font-size:10px;margin-top:3px;border-radius:4px;color:#fff;padding:1px 3px;text-align:center}
+.c u{text-decoration:none;position:absolute;right:4px;bottom:3px;font-size:10px;color:var(--ok);font-weight:700}
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--mu);margin-top:8px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.row button.on{outline:2px solid var(--ac)}
+input[type=text],input[type=number],input[type=time],textarea{font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:8px;width:100%}
+label{font-size:13px;color:var(--mu)}
+.q{border-top:1px solid var(--bd);padding:8px 0;display:flex;gap:8px;justify-content:space-between;align-items:flex-start}
+.q.done .qt{text-decoration:line-through;color:var(--mu)}
+.q small{color:var(--mu)}
+.st{font-size:12px;color:var(--mu);margin:6px 0}
+.live{color:var(--ok);font-size:11px;font-weight:600;margin-left:6px}
+.set{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media(max-width:420px){.set{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+<h1>Shift Tracker</h1>
+<div class="sub" id="clock"></div>
+
+<section class="card today" id="today"></section>
+
+<section class="card">
+<h2>Overtime worked <span class="live">● live</span></h2>
+<div class="stats" id="stats"></div>
+<div class="st" id="otnote"></div>
+</section>
+
+<section class="card">
+<div class="cal-h"><button id="prev" aria-label="Previous month">‹</button><h2 id="mon" style="margin:0"></h2><button id="next" aria-label="Next month">›</button></div>
+<div class="grid" id="dows"></div>
+<div class="grid" id="cal" style="margin-top:4px"></div>
+<div class="legend"><span><span class="pill day">Day</span></span><span><span class="pill night">Night</span></span><span><span class="pill off">Off</span></span><span><span class="pill leave">Leave</span></span><span>✓ auto-ticked on your shift days (faded = upcoming)</span></div>
+</section>
+
+<section class="card" id="editor" hidden>
+<h2 id="edt"></h2>
+<div class="row" id="types"></div>
+<div class="row"><label><input type="checkbox" id="worked"> I came to work (untick only if you didn’t)</label></div>
+<input type="text" id="note" placeholder="Note for this day (optional)">
+<div class="row"><button class="p" id="save">Save</button><button id="clear">Clear day</button></div>
+</section>
+
+<section class="card">
+<h2>Settings</h2>
+<div class="set">
+<div><label>Day shift starts</label><input type="time" id="ds"></div>
+<div><label>Day shift ends</label><input type="time" id="de"></div>
+<div><label>Night shift starts</label><input type="time" id="ns"></div>
+<div><label>Night shift ends</label><input type="time" id="ne"></div>
+</div>
+<div class="row"><button class="p" id="sset">Save settings</button></div>
+</section>
+<div class="st" id="status"></div>
+</main>
+
+<script>
+(function(){
+var $=function(i){return document.getElementById(i)};
+var NAMES={day:"Day",night:"Night",off:"Off",leave:"Leave"};
+var DEF={ot:4,ds:"07:00",de:"19:00",ns:"19:00",ne:"07:00"};
+var S={shifts:{},queries:[],set:Object.assign({},DEF)};
+var db=null,view=new Date(),sel=null,editType=null;
+var _n=new Date();view=new Date(_n.getFullYear(),_n.getMonth()-(_n.getDate()<12?1:0),12);
+
+function pad(n){return String(n).padStart(2,"0")}
+function key(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
+function today(){return key(new Date())}
+function esc(s){var e=document.createElement("div");e.textContent=s;return e.innerHTML}
+function status(m){$("status").textContent=m}
+
+/* ---- storage: saved in this browser (localStorage) ---- */
+var KEY="shiftTracker.v1";
+/* Rotation: 2 Night, 2 Off, 2 Day, repeating 6-day cycle. Anchor: 1 Nov 2026 = first Night. */
+var ANCHOR=Date.UTC(2026,10,1),CYCLE=["night","night","off","off","day","day"],SPAN=730;
+function persist(){try{localStorage.setItem(KEY,JSON.stringify({shifts:S.shifts,set:S.set}))}catch(e){status("Could not save in this browser.")}}
+function seed(){
+  /* Auto-fill every date from the anchor on: shift days are auto-ticked as worked, Off days are not. */
+  for(var i=0;i<SPAN;i++){
+    var d=new Date(ANCHOR+i*864e5),k=d.getUTCFullYear()+"-"+pad(d.getUTCMonth()+1)+"-"+pad(d.getUTCDate());
+    if(!S.shifts[k]){var t=CYCLE[i%6];S.shifts[k]={type:t,worked:t!=="off",note:""}}
+  }
+}
+function saveShift(k,data){
+  S.shifts[k]=data;render();
+  persist();
+}
+function delShift(k){
+  delete S.shifts[k];render();
+  persist();
+}
+function saveSettings(s){
+  S.set=s;render();fillSettings();
+  persist();
+}
+
+/* ---- calculations ---- */
+function counts(from,to){
+  var w=0,p=0,t=today(),dn=0,nn=0;
+  Object.keys(S.shifts).forEach(function(k){
+    if((from&&k<from)||(to&&k>to))return;
+    var s=S.shifts[k];
+    if(s.type!=="day"&&s.type!=="night")return;
+    if(k<=t){ if(s.worked!==false){w++; if(s.type==="day")dn++;else nn++;} }
+    else p++;
+  });
+  return{w:w,p:p,dn:dn,nn:nn};
+}
+
+/* ---- render ---- */
+function render(){
+  var now=new Date(),k=today(),sh=S.shifts[k],ot=4;
+  $("clock").textContent=now.toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long",year:"numeric"})+" · "+now.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
+  var t="<div><div class='sub' style='margin:0'>Today</div>";
+  if(sh&&(sh.type==="day"||sh.type==="night")){
+    var tm=sh.type==="day"?S.set.ds+" – "+S.set.de:S.set.ns+" – "+S.set.ne;
+    t+="<div class='big'>"+NAMES[sh.type]+" shift</div><div>"+tm+"</div></div><span class='pill "+sh.type+"'>"+(sh.worked===false?"Not worked":"+"+ot+" hrs OT")+"</span><button data-nw='"+k+"' style='width:100%'>"+(sh.worked===false?"Undo: I did come to work":"I didn’t come to work today")+"</button>";
+  }else if(sh){t+="<div class='big'>"+NAMES[sh.type]+"</div></div><span class='pill "+sh.type+"'>"+NAMES[sh.type]+"</span>";}
+  else t+="<div class='big'>No shift set</div><div class='sub' style='margin:0'>Tap today on the calendar to set it.</div></div>";
+  if(sh&&sh.note)t+="<div class='sub' style='width:100%;margin:0'>"+esc(sh.note)+"</div>";
+  $("today").innerHTML=t;
+
+  var ps=key(view),pe=key(new Date(view.getFullYear(),view.getMonth()+1,11)),m=counts(ps,pe),a=counts();
+  $("stats").innerHTML=
+   st(m.w*ot,"Worked OT, this period (hrs)")+st(a.w*ot,"Worked OT, all time (hrs)")+
+   st(m.w+" ("+m.dn+" day / "+m.nn+" night)","Shifts worked this period")+st(m.p*ot,"Planned OT, upcoming (hrs)");
+  $("otnote").textContent=ot+" hrs overtime × "+m.w+" shifts worked = "+(m.w*ot)+" hrs this period (12th to 11th). Updated "+now.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit",second:"2-digit"})+".";
+
+  var ped=new Date(view.getFullYear(),view.getMonth()+1,11);$("mon").innerHTML=view.toLocaleDateString(undefined,{day:"numeric",month:"short"})+" – "+ped.toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"});
+  var first=new Date(view.getFullYear(),view.getMonth(),12),start=new Date(first);
+  start.setDate(first.getDate()-((first.getDay()+6)%7));
+  var h="";
+  for(var i=0;i<42;i++){
+    var d=new Date(start);d.setDate(start.getDate()+i);var dk=key(d),s=S.shifts[dk];
+    h+="<div class='c"+(dk<ps||dk>pe?" x":"")+(dk===k?" t":"")+(dk===sel?" sel":"")+"' data-k='"+dk+"'>"+d.getDate()+
+      (s?"<i class='"+s.type+"'>"+NAMES[s.type]+"</i>":"")+((s&&(s.type==="day"||s.type==="night")&&s.worked!==false)?"<u"+(dk>k?" style='opacity:.45'":"")+">✓</u>":"")+((s&&(s.type==="day"||s.type==="night")&&s.worked===false&&dk<=k)?"<u style='color:#e03131'>✗</u>":"")+"</div>";
+  }
+  $("cal").innerHTML=h;
+
+}
+function st(v,l){return "<div class='stat'><b>"+v+"</b><span>"+l+"</span></div>"}
+function fillSettings(){
+  $("ds").value=S.set.ds;$("de").value=S.set.de;$("ns").value=S.set.ns;$("ne").value=S.set.ne;
+}
+
+/* ---- editor ---- */
+function openEditor(k){
+  sel=k;var s=S.shifts[k]||{};editType=s.type||null;
+  $("editor").hidden=false;
+  $("edt").textContent=new Date(k+"T12:00:00").toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"});
+  $("worked").checked=s.worked!==false;$("note").value=s.note||"";
+  drawTypes();render();
+  $("editor").scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+function drawTypes(){
+  $("types").innerHTML=Object.keys(NAMES).map(function(t){return "<button data-t='"+t+"' class='"+(editType===t?"on":"")+"'>"+NAMES[t]+"</button>"}).join("");
+}
+
+/* ---- events ---- */
+document.addEventListener("click",function(e){
+  var el=e.target.closest("[data-k],[data-t],[data-nw]");if(!el)return;
+  if(el.dataset.nw){var nk=el.dataset.nw,cur=S.shifts[nk];if(cur)saveShift(nk,Object.assign({},cur,{worked:cur.worked===false}));return}
+  if(el.dataset.k)openEditor(el.dataset.k);
+  else if(el.dataset.t){editType=el.dataset.t;drawTypes()}
+});
+$("prev").onclick=function(){view.setMonth(view.getMonth()-1);render()};
+$("next").onclick=function(){view.setMonth(view.getMonth()+1);render()};
+$("save").onclick=function(){
+  if(!sel||!editType){status("Pick Day, Night, Off or Leave first.");return}
+  saveShift(sel,{type:editType,worked:(editType==="day"||editType==="night")?$("worked").checked:false,note:$("note").value.trim()});status("Saved.");
+};
+$("clear").onclick=function(){if(sel){delShift(sel);$("editor").hidden=true;sel=null}};
+$("sset").onclick=function(){
+  saveSettings({ot:4,ds:$("ds").value||DEF.ds,de:$("de").value||DEF.de,ns:$("ns").value||DEF.ns,ne:$("ne").value||DEF.ne});status("Settings saved.");
+};
+
+/* ---- init ---- */
+var dows="Mon Tue Wed Thu Fri Sat Sun".split(" ");
+$("dows").innerHTML=dows.map(function(d){return "<div class='dow'>"+d+"</div>"}).join("");
+fillSettings();render();
+setInterval(render,30000);
+
+try{var raw=localStorage.getItem(KEY);if(raw){var o=JSON.parse(raw);S.shifts=o.shifts||{};S.set=Object.assign({},DEF,o.set||{})}}catch(e){}
+seed();fillSettings();render();
+status("Saved in this browser. Shifts auto-fill from your rotation.");
+})();
+</script>
+</body>
+</html>
